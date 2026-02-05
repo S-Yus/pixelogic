@@ -1,13 +1,20 @@
 :root {
     --bg-color: #f4f6f8;
-    --board-bg: #ffffff;
-    --grid-line: #e0e0e0;
-    --grid-thick: #333333; /* 5マスごとの太線 */
+    --board-bg: #888; /* 隙間の線の色 */
+    --cell-bg: #ffffff;
+    --grid-thick: #222; /* 5マスごとの太線 */
     --accent-color: #2c3e50;
-    --cell-size: 26px; /* マスのサイズ */
+    
+    /* マスを大きくしました */
+    --cell-size: 34px; 
+    
     --filled-color: #2c3e50;
     --cross-color: #aab7c4;
-    --hint-text: #555;
+    
+    /* ミス時の色（赤） */
+    --error-color: #e74c3c;
+    
+    --hint-text: #444;
     --hint-bg: #edf2f7;
 }
 
@@ -37,16 +44,29 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 h1 {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     margin: 0;
     letter-spacing: 1px;
 }
 
-/* --- スライドスイッチのデザイン --- */
+.lives-container {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+    color: var(--error-color);
+    font-size: 1.1rem;
+}
+
+/* --- スイッチとボタン --- */
 .controls {
     display: flex;
     align-items: center;
@@ -58,13 +78,14 @@ h1 {
     align-items: center;
     gap: 8px;
     font-weight: bold;
+    font-size: 1.2rem;
 }
 
 .switch {
     position: relative;
     display: inline-block;
-    width: 50px;
-    height: 26px;
+    width: 60px;
+    height: 30px;
 }
 
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -81,82 +102,77 @@ h1 {
 .slider:before {
     position: absolute;
     content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
     background-color: white;
     transition: .4s;
     border-radius: 50%;
 }
 
-/* チェック時は「塗りモード」 */
-input:checked + .slider {
-    background-color: var(--accent-color);
-}
-
-input:checked + .slider:before {
-    transform: translateX(24px);
-}
+input:checked + .slider { background-color: var(--accent-color); }
+input:checked + .slider:before { transform: translateX(30px); }
 
 .btn-secondary {
-    padding: 8px 16px;
+    padding: 10px 20px;
     border: 1px solid #ccc;
     background: white;
     border-radius: 6px;
     cursor: pointer;
     font-weight: bold;
+    font-size: 0.9rem;
     transition: 0.2s;
 }
 .btn-secondary:hover { background: #f0f0f0; }
 
-
-/* --- 盤面レイアウト (CSS Grid) --- */
+/* --- 盤面レイアウト --- */
 .game-board-wrapper {
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: auto 1fr;
-    gap: 2px;
+    gap: 4px; /* ヒントエリアと盤面の間の隙間 */
 }
 
-.corner-spacer { width: 100px; height: 100px; }
+.corner-spacer { } 
 
-/* ヒントエリア */
 .hints-top {
     display: flex;
-    margin-bottom: 2px;
+    margin-bottom: 0;
 }
 .hint-col {
-    width: var(--cell-size);
+    width: var(--cell-size); /* マス幅と完全に一致させる */
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
     font-family: 'Roboto Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--hint-text);
     background: var(--hint-bg);
     padding-bottom: 4px;
-    border-left: 1px solid white;
+    border-left: 1px solid #fff;
+    box-sizing: border-box; /* サイズ計算を厳密に */
 }
 
 .hints-left {
     display: flex;
     flex-direction: column;
-    margin-right: 2px;
+    margin-right: 0;
 }
 .hint-row {
-    height: var(--cell-size);
+    height: var(--cell-size); /* マス高さと完全に一致させる */
     display: flex;
     justify-content: flex-end;
     align-items: center;
     font-family: 'Roboto Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--hint-text);
     background: var(--hint-bg);
     padding-right: 8px;
     gap: 4px;
-    border-bottom: 1px solid white;
+    border-bottom: 1px solid #fff;
+    box-sizing: border-box;
 }
 
 /* 盤面本体 */
@@ -164,44 +180,60 @@ input:checked + .slider:before {
     display: grid;
     grid-template-columns: repeat(15, var(--cell-size));
     grid-template-rows: repeat(15, var(--cell-size));
-    border: 2px solid var(--grid-thick); /* 外枠 */
-    background: var(--grid-line); /* グリッド線の色 */
-    gap: 1px;
+    border: 3px solid var(--grid-thick);
+    background: var(--board-bg); /* これが隙間の線の色になる */
+    gap: 1px; /* 全体の隙間を1pxで統一 */
 }
 
 .cell {
-    background-color: var(--board-bg);
+    background-color: var(--cell-bg);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
     user-select: none;
+    position: relative;
+    box-sizing: border-box;
 }
 
-/* 5マスごとの太線 */
-/* 縦の太線: 5列目と10列目の右側 */
+/* 5マスごとの太線 (borderではなくbox-shadowを使うとサイズずれが起きない) */
+/* 右側の太線 */
 .cell[data-col="4"], .cell[data-col="9"] {
-    border-right: 2px solid var(--grid-thick) !important;
-    /* gapの影響を相殺するためにmargin調整が必要だが、
-       今回は簡易的にborderで表現。gap:1pxがあるので厳密にはズレるが
-       視覚的にはborder-rightを追加するのが一番手軽 */
-    width: calc(var(--cell-size) - 2px); /* 幅を調整してレイアウト崩れ防止 */
-    padding-right: 2px;
-}
-/* 横の太線: 5行目と10行目の下側 */
-.cell[data-row="4"], .cell[data-row="9"] {
-    border-bottom: 2px solid var(--grid-thick) !important;
-    height: calc(var(--cell-size) - 2px);
-    padding-bottom: 2px;
+    border-right: 2px solid var(--grid-thick);
+    /* 太線の分だけ中身が狭くなるので、widthはそのままbox-sizingに任せる */
+    /* 隣のgap 1px + border 2px で太く見える */
 }
 
-/* セルの状態 */
+/* 下側の太線 */
+.cell[data-row="4"], .cell[data-row="9"] {
+    border-bottom: 2px solid var(--grid-thick);
+}
+
+/* 状態別のスタイル */
 .cell.filled { background-color: var(--filled-color); }
+
 .cell.crossed::after {
     content: "×";
-    font-size: 18px;
+    font-size: 24px;
     color: var(--cross-color);
     font-weight: bold;
+}
+
+/* エラー（ミス）時のスタイル */
+/* 間違って塗った場合（本来は×） -> 赤い× */
+.cell.error-cross {
+    background-color: #fff5f5; /* 背景うっすら赤 */
+}
+.cell.error-cross::after {
+    content: "×";
+    font-size: 24px;
+    color: var(--error-color); /* 赤いバツ */
+    font-weight: bold;
+}
+
+/* 間違って×を置いた場合（本来は塗り） -> 赤く塗りつぶし */
+.cell.error-fill {
+    background-color: var(--error-color) !important; /* 赤色で塗りつぶし */
 }
 
 .status-message {
@@ -209,4 +241,5 @@ input:checked + .slider:before {
     height: 20px;
     color: var(--accent-color);
     font-weight: bold;
+    font-size: 1.2rem;
 }

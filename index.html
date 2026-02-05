@@ -11,7 +11,13 @@
 
     <div class="app-container">
         <header>
-            <h1>LOGIC PUZZLE</h1>
+            <div class="header-left">
+                <h1>LOGIC PUZZLE</h1>
+                <div class="lives-container">
+                    Mistakes: <span id="mistake-count">0</span> / 5
+                </div>
+            </div>
+            
             <div class="controls">
                 <button id="new-game-btn" class="btn-secondary">New Game</button>
                 <div class="toggle-container">
@@ -27,11 +33,8 @@
 
         <div class="game-board-wrapper">
             <div class="corner-spacer"></div>
-            
             <div id="hints-top" class="hints-top"></div>
-            
             <div id="hints-left" class="hints-left"></div>
-            
             <div id="board" class="board"></div>
         </div>
         
