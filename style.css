@@ -1,217 +1,147 @@
 :root {
-    --bg-color: #f4f6f8;
-    --board-bg: #888; /* 隙間の線の色 */
-    --cell-bg: #ffffff;
-    --grid-thick: #222; /* 5マスごとの太線 */
-    --accent-color: #2c3e50;
+    --bg-color: #e0e0e0; /* 本家っぽい背景色 */
+    --board-bg: #fff;
+    --grid-line: #ccc;
+    --grid-thick: #888; /* 5マスごとの線 */
     
-    /* マスを大きくしました */
     --cell-size: 34px; 
     
-    --filled-color: #2c3e50;
-    --cross-color: #aab7c4;
+    /* 本家カラー */
+    --filled-color: #4CAF50; /* 緑色 */
+    --cross-color: #757575;  /* グレーのバツ */
+    --error-color: #e53935;  /* エラーの赤 */
     
-    /* ミス時の色（赤） */
-    --error-color: #e74c3c;
-    
-    --hint-text: #444;
-    --hint-bg: #edf2f7;
+    --hint-text: #333;
+    --hint-bg: transparent; /* ヒント背景は透明または薄いグレー */
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Roboto', sans-serif;
     background-color: var(--bg-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
     margin: 0;
     color: #333;
-}
-
-.app-container {
-    background: white;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 100vh;
 }
 
-header {
+/* ヘッダー */
+.app-header {
     width: 100%;
+    height: 60px;
+    background: #fff;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    z-index: 100;
 }
 
 .header-left {
     display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #444;
+}
+
+.logo {
+    color: #4CAF50; /* ロゴ風の緑 */
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.divider { color: #ccc; }
+.puzzle-title { font-weight: normal; font-size: 1rem; color: #666; }
+
+.timer {
+    font-family: 'Roboto', monospace;
+    font-size: 1.5rem;
+    color: #555;
+    font-weight: bold;
+}
+
+/* メインコンテンツ */
+.main-content {
+    margin-top: 80px; /* ヘッダー分空ける */
+    display: flex;
     flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    padding-bottom: 100px; /* 下のボタン分空ける */
 }
 
-h1 {
-    font-size: 1.8rem;
-    margin: 0;
-    letter-spacing: 1px;
-}
-
-.lives-container {
-    font-family: 'Roboto Mono', monospace;
+.status-bar {
+    margin-bottom: 10px;
+    font-family: 'Roboto', monospace;
     font-weight: bold;
     color: var(--error-color);
-    font-size: 1.1rem;
 }
 
-/* --- スイッチとボタン --- */
-.controls {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.toggle-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 30px;
-}
-
-.switch input { opacity: 0; width: 0; height: 0; }
-
-.slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-}
-
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 22px;
-    width: 22px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-}
-
-input:checked + .slider { background-color: var(--accent-color); }
-input:checked + .slider:before { transform: translateX(30px); }
-
-.btn-secondary {
-    padding: 10px 20px;
-    border: 1px solid #ccc;
-    background: white;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 0.9rem;
-    transition: 0.2s;
-}
-.btn-secondary:hover { background: #f0f0f0; }
-
-/* --- 盤面レイアウト --- */
+/* 盤面レイアウト */
 .game-board-wrapper {
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: auto 1fr;
-    gap: 4px; /* ヒントエリアと盤面の間の隙間 */
+    gap: 2px;
 }
 
-.corner-spacer { } 
-
-.hints-top {
-    display: flex;
-    margin-bottom: 0;
-}
+.hints-top { display: flex; }
 .hint-col {
-    width: var(--cell-size); /* マス幅と完全に一致させる */
+    width: var(--cell-size);
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    font-family: 'Roboto Mono', monospace;
     font-size: 13px;
     color: var(--hint-text);
-    background: var(--hint-bg);
     padding-bottom: 4px;
-    border-left: 1px solid #fff;
-    box-sizing: border-box; /* サイズ計算を厳密に */
+    border-left: 1px solid transparent; /* 線なし */
 }
 
-.hints-left {
-    display: flex;
-    flex-direction: column;
-    margin-right: 0;
-}
+.hints-left { display: flex; flex-direction: column; }
 .hint-row {
-    height: var(--cell-size); /* マス高さと完全に一致させる */
+    height: var(--cell-size);
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    font-family: 'Roboto Mono', monospace;
     font-size: 13px;
     color: var(--hint-text);
-    background: var(--hint-bg);
     padding-right: 8px;
     gap: 4px;
-    border-bottom: 1px solid #fff;
-    box-sizing: border-box;
 }
 
-/* 盤面本体 */
 .board {
     display: grid;
     grid-template-columns: repeat(15, var(--cell-size));
     grid-template-rows: repeat(15, var(--cell-size));
-    border: 3px solid var(--grid-thick);
-    background: var(--board-bg); /* これが隙間の線の色になる */
-    gap: 1px; /* 全体の隙間を1pxで統一 */
+    border: 2px solid var(--grid-thick);
+    background: var(--grid-line);
+    gap: 1px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* 盤面に影をつける */
 }
 
 .cell {
-    background-color: var(--cell-bg);
+    background-color: var(--board-bg);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
     user-select: none;
-    position: relative;
     box-sizing: border-box;
 }
 
-/* 5マスごとの太線 (borderではなくbox-shadowを使うとサイズずれが起きない) */
-/* 右側の太線 */
-.cell[data-col="4"], .cell[data-col="9"] {
-    border-right: 2px solid var(--grid-thick);
-    /* 太線の分だけ中身が狭くなるので、widthはそのままbox-sizingに任せる */
-    /* 隣のgap 1px + border 2px で太く見える */
-}
-
-/* 下側の太線 */
-.cell[data-row="4"], .cell[data-row="9"] {
-    border-bottom: 2px solid var(--grid-thick);
-}
+/* 5マスごとの太線 */
+.cell[data-col="4"], .cell[data-col="9"] { border-right: 1px solid var(--grid-thick); }
+.cell[data-row="4"], .cell[data-row="9"] { border-bottom: 1px solid var(--grid-thick); }
 
 /* 状態別のスタイル */
-.cell.filled { background-color: var(--filled-color); }
-
+.cell.filled { background-color: var(--filled-color); } /* 緑色 */
 .cell.crossed::after {
     content: "×";
     font-size: 24px;
@@ -219,27 +149,103 @@ input:checked + .slider:before { transform: translateX(30px); }
     font-weight: bold;
 }
 
-/* エラー（ミス）時のスタイル */
-/* 間違って塗った場合（本来は×） -> 赤い× */
-.cell.error-cross {
-    background-color: #fff5f5; /* 背景うっすら赤 */
-}
+/* エラー（赤） */
+.cell.error-cross { background-color: #ffebee; }
 .cell.error-cross::after {
     content: "×";
     font-size: 24px;
-    color: var(--error-color); /* 赤いバツ */
+    color: var(--error-color);
     font-weight: bold;
 }
+.cell.error-fill { background-color: var(--error-color) !important; }
 
-/* 間違って×を置いた場合（本来は塗り） -> 赤く塗りつぶし */
-.cell.error-fill {
-    background-color: var(--error-color) !important; /* 赤色で塗りつぶし */
+/* 右下のフローティングコントロール */
+.floating-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 100;
 }
+
+.fab-btn {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+/* 本家風スイッチ */
+.toggle-switch-wrapper {
+    position: relative;
+    width: 100px;
+    height: 50px;
+    background: white;
+    border-radius: 25px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 5px;
+    box-sizing: border-box;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.mode-checkbox { display: none; }
+
+.mode-label {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    cursor: pointer;
+    z-index: 2;
+    position: relative;
+}
+
+.icon-cross { font-size: 24px; color: #999; font-weight: bold; }
+.icon-fill { 
+    width: 20px; height: 20px; 
+    background-color: #999; 
+    display: inline-block; 
+    border-radius: 2px;
+}
+
+/* 選択中の背景スライド */
+.mode-label::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px; /* 初期状態は右（塗り） */
+    width: 45px;
+    height: 40px;
+    background-color: #333;
+    border-radius: 20px;
+    transition: 0.3s;
+    z-index: -1;
+}
+
+/* チェックなし(×モード)の時 */
+.mode-checkbox:not(:checked) + .mode-label::before {
+    transform: translateX(-45px); /* 左へ移動 */
+}
+
+/* アイコンの色変化 */
+.mode-checkbox:checked + .mode-label .icon-fill { background-color: white; }
+.mode-checkbox:not(:checked) + .mode-label .icon-cross { color: white; }
 
 .status-message {
-    margin-top: 15px;
-    height: 20px;
-    color: var(--accent-color);
+    margin-top: 20px;
+    font-size: 1.5rem;
     font-weight: bold;
-    font-size: 1.2rem;
+    color: var(--filled-color);
 }

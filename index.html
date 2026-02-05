@@ -3,33 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logic Puzzle 15x15</title>
+    <title>Pixelogic Clone</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div class="app-container">
-        <header>
-            <div class="header-left">
-                <h1>LOGIC PUZZLE</h1>
-                <div class="lives-container">
-                    Mistakes: <span id="mistake-count">0</span> / 5
-                </div>
-            </div>
-            
-            <div class="controls">
-                <button id="new-game-btn" class="btn-secondary">New Game</button>
-                <div class="toggle-container">
-                    <span class="toggle-label">×</span>
-                    <label class="switch">
-                        <input type="checkbox" id="mode-toggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                    <span class="toggle-label">■</span>
-                </div>
-            </div>
-        </header>
+    <div class="app-header">
+        <div class="header-left">
+            <div class="logo">Pixelogic</div>
+            <div class="divider">|</div>
+            <div class="puzzle-title">Random 15x15</div>
+        </div>
+        <div class="header-right">
+            <div id="timer" class="timer">00:00</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="status-bar">
+            Mistakes: <span id="mistake-count">0</span> / 5
+        </div>
 
         <div class="game-board-wrapper">
             <div class="corner-spacer"></div>
@@ -39,6 +33,17 @@
         </div>
         
         <div id="status-message" class="status-message"></div>
+    </div>
+
+    <div class="floating-controls">
+        <div class="toggle-switch-wrapper">
+            <input type="checkbox" id="mode-toggle" class="mode-checkbox" checked>
+            <label for="mode-toggle" class="mode-label">
+                <span class="icon-cross">×</span>
+                <span class="icon-fill"></span>
+            </label>
+        </div>
+        <button id="new-game-btn" class="fab-btn">New</button>
     </div>
 
     <script src="script.js"></script>

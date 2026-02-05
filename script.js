@@ -6,15 +6,24 @@ let userState = []; // 0:Empty, 1:Filled, 2:Cross
 let mistakeCount = 0;
 let isGameOver = false;
 
+// タイマー用
+let timerInterval = null;
+let secondsElapsed = 0;
+
+// 操作状態
 let isMouseDown = false;
 let currentMode = 1; // 1: Fill, 2: Cross
+let draggingState = null; // ドラッグ開始時に「塗る」か「消す」か判定用
 
 document.addEventListener('DOMContentLoaded', () => {
-    const newGameBtn = document.getElementById('new-game-btn');
-    if(newGameBtn) newGameBtn.addEventListener('click', startNewGame);
+    // New Gameボタン
+    const newBtn = document.getElementById('new-game-btn');
+    if(newBtn) newBtn.addEventListener('click', startNewGame);
     
+    // モード切替スイッチ
     const modeToggle = document.getElementById('mode-toggle');
     if(modeToggle) {
+        currentMode = modeToggle.checked ? 1 : 2; 
         modeToggle.addEventListener('change', (e) => {
             currentMode = e.target.checked ? 1 : 2; 
         });
@@ -23,17 +32,48 @@ document.addEventListener('DOMContentLoaded', () => {
     startNewGame();
 });
 
+// --- ゲーム進行 ---
+
 function startNewGame() {
     isGameOver = false;
     mistakeCount = 0;
+    stopTimer();
+    secondsElapsed = 0;
+    updateTimerDisplay();
+    startTimer();
     updateMistakeDisplay();
     
     const msg = document.getElementById('status-message');
     if(msg) msg.textContent = "";
 
-    generateRandomSolution();
+    // 盤面生成（お題を2つ以内に制限）
+    generateSimpleSolution();
+    
     resetUserState();
     drawBoard();
+}
+
+function startTimer() {
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        secondsElapsed++;
+        updateTimerDisplay();
+    }, 1000);
+}
+
+function stopTimer() {
+    if(timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateTimerDisplay() {
+    const el = document.getElementById('timer');
+    if(!el) return;
+    const min = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+    const sec = (secondsElapsed % 60).toString().padStart(2, '0');
+    el.textContent = `${min}:${sec}`;
 }
 
 function updateMistakeDisplay() {
@@ -44,17 +84,89 @@ function updateMistakeDisplay() {
     }
 }
 
-// 簡易的なランダム生成（ソルバーなしで高速化）
-function generateRandomSolution() {
-    solution = [];
-    for (let r = 0; r < SIZE; r++) {
-        let row = [];
-        for (let c = 0; c < SIZE; c++) {
-            row.push(Math.random() < 0.55 ? 1 : 0);
+// --- 盤面生成ロジック (改良版) ---
+// 「ヒントが最大2つ」になるように、矩形を配置して整形する
+function generateSimpleSolution() {
+    // 1. 全て白で初期化
+    solution = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+
+    // 2. 大きな矩形をランダムにいくつか配置（スタンプ方式）
+    // これにより自然と「塊」ができる
+    const numRects = 4 + Math.floor(Math.random() * 3); // 4〜6個の矩形
+    for (let i = 0; i < numRects; i++) {
+        const w = 3 + Math.floor(Math.random() * 6); // 幅 3-8
+        const h = 3 + Math.floor(Math.random() * 6); // 高さ 3-8
+        const x = Math.floor(Math.random() * (SIZE - w));
+        const y = Math.floor(Math.random() * (SIZE - h));
+        
+        for (let dy = 0; dy < h; dy++) {
+            for (let dx = 0; dx < w; dx++) {
+                solution[y + dy][x + dx] = 1;
+            }
         }
-        solution.push(row);
+    }
+
+    // 3. 行と列を走査し、「ヒントが3つ以上」になってしまった箇所を修正（結合）する
+    // これを数回繰り返して形を整える
+    for (let iter = 0; iter < 5; iter++) {
+        // 行の修正
+        for (let r = 0; r < SIZE; r++) {
+            ensureMaxTwoBlocks(solution[r]);
+        }
+        // 列の修正（転置して処理）
+        for (let c = 0; c < SIZE; c++) {
+            let col = [];
+            for (let r = 0; r < SIZE; r++) col.push(solution[r][c]);
+            ensureMaxTwoBlocks(col);
+            for (let r = 0; r < SIZE; r++) solution[r][c] = col[r];
+        }
     }
 }
+
+// 配列の中の「1の塊」が2つ以下になるように、隙間を埋める関数
+function ensureMaxTwoBlocks(line) {
+    // 現在のブロック情報を取得 [start, length] の配列
+    let blocks = [];
+    let inBlock = false;
+    let start = 0;
+    for (let i = 0; i < SIZE; i++) {
+        if (line[i] === 1) {
+            if (!inBlock) { inBlock = true; start = i; }
+        } else {
+            if (inBlock) { inBlock = false; blocks.push({s: start, e: i-1}); }
+        }
+    }
+    if (inBlock) blocks.push({s: start, e: SIZE-1});
+
+    // ブロックが3つ以上ある場合、結合して減らす
+    while (blocks.length > 2) {
+        // 距離が最も近いブロック同士を探す
+        let minGap = SIZE;
+        let mergeIdx = 0; // index of first block to merge
+        
+        for (let i = 0; i < blocks.length - 1; i++) {
+            const gap = blocks[i+1].s - blocks[i].e;
+            if (gap < minGap) {
+                minGap = gap;
+                mergeIdx = i;
+            }
+        }
+        
+        // 結合実行（間の0を1にする）
+        const b1 = blocks[mergeIdx];
+        const b2 = blocks[mergeIdx+1];
+        for (let k = b1.e + 1; k < b2.s; k++) {
+            line[k] = 1;
+        }
+        
+        // blocks配列を再計算（面倒なので再帰的に解決させるためループ継続）
+        // 簡易的にリスト更新
+        blocks[mergeIdx].e = b2.e;
+        blocks.splice(mergeIdx + 1, 1);
+    }
+}
+
+// --- 描画・操作系 ---
 
 function getHints(line) {
     const hints = [];
@@ -123,6 +235,7 @@ function drawBoard() {
             cell.dataset.col = c;
             cell.dataset.row = r;
 
+            // マウスイベント
             cell.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 startDrag(r, c);
@@ -133,12 +246,24 @@ function drawBoard() {
         }
     }
     
-    window.addEventListener('mouseup', () => isMouseDown = false);
+    // 画面外で離した時の対策
+    window.addEventListener('mouseup', () => {
+        isMouseDown = false;
+        draggingState = null;
+    });
 }
+
+// --- 操作ロジック ---
 
 function startDrag(r, c) {
     if (isGameOver) return;
     isMouseDown = true;
+    
+    // 操作の「意図」を決定する
+    // 空マスをクリック -> そのモードで塗る
+    // 既に自分のモードで塗られている -> 何もしない（あるいは消す実装もありだが今回はシンプルに）
+    draggingState = currentMode;
+    
     applyAction(r, c);
 }
 
@@ -147,40 +272,38 @@ function continueDrag(r, c) {
     applyAction(r, c);
 }
 
-// アクション実行（ここで正誤判定を行う）
 function applyAction(r, c) {
-    // 既に何らかの状態が入っているマスは操作できない（上書き禁止）
+    // 既に何らかの状態が確定している（正解 or ミス修正済み）なら何もしない
+    // ただし、ドラッグ操作中に「まだ操作していないマス」だけを変えたい
     if (userState[r][c] !== 0) return;
 
     const correctValue = solution[r][c];
     
-    // --- 判定ロジック ---
-    if (currentMode === 1) { // プレイヤーは「塗る」つもり
+    // 判定ロジック
+    // 「塗るモード(1)」で操作
+    if (currentMode === 1) {
         if (correctValue === 1) {
-            // 正解（塗るべき場所だった）
+            // 正解: 塗る
             userState[r][c] = 1;
         } else {
-            // 不正解（塗ってはいけない場所だった）
-            // ペナルティ：本来は空(×)であることを強制開示し、赤くする
-            userState[r][c] = 2; // バツとして記録
-            registerMistake(r, c, 'cross'); // 'cross'エラーを表示（赤いバツ）
+            // ミス: 本来は白(0)なので、バツ(2)を強制表示してペナルティ
+            userState[r][c] = 2;
+            registerMistake(r, c, 'cross');
         }
-    } else { // プレイヤーは「×」のつもり
+    } 
+    // 「バツモード(2)」で操作
+    else {
         if (correctValue === 0) {
-            // 正解（×で合っている）
+            // 正解: バツを置く
             userState[r][c] = 2;
         } else {
-            // 不正解（本来は塗るべき場所だった）
-            // ペナルティ：本来は塗りであることを強制開示し、赤くする
-            userState[r][c] = 1; // 塗りとして記録
-            registerMistake(r, c, 'fill'); // 'fill'エラーを表示（赤い塗り）
+            // ミス: 本来は黒(1)なので、塗り(1)を強制表示してペナルティ
+            userState[r][c] = 1;
+            registerMistake(r, c, 'fill');
         }
     }
 
     updateCellVisual(r, c);
-    
-    // オートコンプリートと勝利判定は、正しい操作だった場合のみ行うのが一般的だが、
-    // ミス修正後も状況が進むので毎回チェックしても良い
     checkAutoCross(r, c);
     checkWin();
 }
@@ -189,19 +312,11 @@ function registerMistake(r, c, type) {
     mistakeCount++;
     updateMistakeDisplay();
 
-    // 該当セルにエラー用のクラスを付与
-    // ビジュアル更新関数内でクラス付け替えを行うためのフラグをセットしてもいいが
-    // ここではDOMを直接操作してエラー状態を記憶させる
     const index = r * SIZE + c;
     const cell = document.getElementById('board').children[index];
     
-    if (type === 'cross') {
-        // 本来×なのに塗ろうとした -> 赤い×
-        cell.classList.add('error-cross');
-    } else {
-        // 本来塗りなのに×しようとした -> 赤い塗り
-        cell.classList.add('error-fill');
-    }
+    if (type === 'cross') cell.classList.add('error-cross');
+    else cell.classList.add('error-fill');
 
     if (mistakeCount >= MAX_MISTAKES) {
         triggerGameOver();
@@ -210,57 +325,70 @@ function registerMistake(r, c, type) {
 
 function triggerGameOver() {
     isGameOver = true;
+    stopTimer();
     const msg = document.getElementById('status-message');
     if(msg) {
         msg.textContent = "GAME OVER";
         msg.style.color = "red";
     }
-    alert("Game Over! Too many mistakes.");
+    // 少し遅らせてアラート（描画反映後）
+    setTimeout(() => alert("Game Over!"), 10);
 }
-
 
 function updateCellVisual(r, c) {
     const index = r * SIZE + c;
     const cell = document.getElementById('board').children[index];
     
-    // エラー表示クラスは消さないように注意する（addしたままにする）
-    // 基本的な filled / crossed のみを制御
     if (userState[r][c] === 1) cell.classList.add('filled');
     if (userState[r][c] === 2) cell.classList.add('crossed');
 }
 
-
+// 自動バツ埋め機能
 function checkAutoCross(changedR, changedC) {
-    // 行
+    if (isGameOver) return;
+
+    // 行チェック
+    // ユーザーの状態（ミスによる強制訂正含む）と正解の「黒の数」が一致したら、残りをバツに
     if (shouldAutoCrossLine(solution[changedR], userState[changedR])) {
-        for (let c = 0; c < SIZE; c++) {
-            if (userState[changedR][c] === 0) {
-                userState[changedR][c] = 2; 
-                updateCellVisual(changedR, c);
-            }
-        }
+        fillRestWithCross(changedR, null); // 行全体
     }
-    // 列
+
+    // 列チェック
     let colSol = [], colUser = [];
     for(let r=0; r<SIZE; r++) {
         colSol.push(solution[r][changedC]);
         colUser.push(userState[r][changedC]);
     }
     if (shouldAutoCrossLine(colSol, colUser)) {
-        for (let r = 0; r < SIZE; r++) {
-            if (userState[r][changedC] === 0) {
-                userState[r][changedC] = 2;
-                updateCellVisual(r, changedC);
-            }
-        }
+        fillRestWithCross(null, changedC); // 列全体
     }
 }
 
 function shouldAutoCrossLine(solLine, userLine) {
     const targetCount = solLine.filter(x => x === 1).length;
-    // ユーザーが正しく塗った数だけをカウント（エラーで強制開示された塗りも含む）
     const currentCount = userLine.filter(x => x === 1).length;
     return targetCount === currentCount;
+}
+
+function fillRestWithCross(targetR, targetC) {
+    // 行の場合
+    if (targetR !== null) {
+        for (let c = 0; c < SIZE; c++) {
+            if (userState[targetR][c] === 0) {
+                userState[targetR][c] = 2; // バツ
+                updateCellVisual(targetR, c);
+            }
+        }
+    }
+    // 列の場合
+    if (targetC !== null) {
+        for (let r = 0; r < SIZE; r++) {
+            if (userState[r][targetC] === 0) {
+                userState[r][targetC] = 2; // バツ
+                updateCellVisual(r, targetC);
+            }
+        }
+    }
 }
 
 function checkWin() {
@@ -269,20 +397,23 @@ function checkWin() {
     let correct = true;
     for(let r=0; r<SIZE; r++) {
         for(let c=0; c<SIZE; c++) {
-            // 正解が1なのに塗ってない、または正解が0なのに塗ってる
-            // userStateにはミスで修正された結果も入るので、
-            // 全て埋まっていれば自然と勝利になる
+            // 未入力(0)がある、または不一致があればクリアではない
+            // ただし、userStateはミス時に強制修正されるので、
+            // 「すべてのマスが0ではなくなっている」かつ「黒マスの位置が正しい」ならクリア
+            // ここではシンプルに「黒マスの位置がすべてuserStateで1になっているか」を見る
             if (solution[r][c] === 1 && userState[r][c] !== 1) correct = false;
+            // 白マスの位置が1になっていないか（これはapplyActionで防がれるが念のため）
             if (solution[r][c] === 0 && userState[r][c] === 1) correct = false;
         }
     }
     
     if (correct) {
         isGameOver = true;
+        stopTimer();
         const msg = document.getElementById('status-message');
         if(msg) {
-            msg.textContent = "CLEARED! CONGRATULATIONS!";
-            msg.style.color = "#2c3e50";
+            msg.textContent = "CLEARED!";
+            msg.style.color = "#4CAF50";
         }
     }
 }
