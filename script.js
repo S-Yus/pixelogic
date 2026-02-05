@@ -14,7 +14,7 @@ let secondsElapsed = 0;
 // 操作関連
 let isMouseDown = false;
 let currentMode = 1; // 1: Fill, 2: Cross
-let currentDragTarget = null; // ドラッグ開始時のターゲット（上書き防止用）
+let currentDragTarget = null; // ドラッグ開始時のターゲット
 
 // --- 初期化 ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,25 +25,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // スイッチ設定
     const modeToggle = document.getElementById('mode-toggle');
     if(modeToggle) {
-        // 初期状態取得
         currentMode = modeToggle.checked ? 1 : 2; 
         modeToggle.addEventListener('change', (e) => {
             currentMode = e.target.checked ? 1 : 2; 
         });
     }
 
-    // 初回ゲーム開始
     startNewGame();
 });
 
-
 // --- ゲーム進行管理 ---
-
 function startNewGame() {
     isGameOver = false;
     mistakeCount = 0;
     
-    // タイマーリセット
     stopTimer();
     secondsElapsed = 0;
     updateTimerDisplay();
@@ -57,8 +52,8 @@ function startNewGame() {
         msg.style.color = "";
     }
 
-    // 盤面生成
-    generateBlockySolution();
+    // 盤面生成 (強力な制約付き)
+    generateStrictSolution();
     
     resetUserState();
     drawBoard();
@@ -96,62 +91,105 @@ function updateMistakeDisplay() {
 }
 
 
-// --- 盤面生成ロジック (ヒント数抑制版) ---
+// --- 盤面生成ロジック (厳格版) ---
+// ヒント数が「必ず2つ以下」になるまで結合を繰り返す
+function generateStrictSolution() {
+    let isValid = false;
+    let attempts = 0;
 
-function generateBlockySolution() {
-    // 1. 白紙作成
-    solution = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
-
-    // 2. 矩形をランダム配置 (4~7個)
-    const numRects = 4 + Math.floor(Math.random() * 4); 
-    for (let i = 0; i < numRects; i++) {
-        // サイズをある程度大きく保つ
-        const w = 3 + Math.floor(Math.random() * 6); // 幅3-8
-        const h = 3 + Math.floor(Math.random() * 6); // 高さ3-8
-        const x = Math.floor(Math.random() * (SIZE - w));
-        const y = Math.floor(Math.random() * (SIZE - h));
+    // まともな盤面ができるまで最大10回リトライ（真っ黒になりすぎた場合など）
+    while (!isValid && attempts < 10) {
+        attempts++;
         
-        for (let dy = 0; dy < h; dy++) {
-            for (let dx = 0; dx < w; dx++) {
-                solution[y + dy][x + dx] = 1;
+        // 1. 初期化
+        solution = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+
+        // 2. ランダムな矩形配置 (少なめ・大きめにしてノイズを減らす)
+        const numRects = 3 + Math.floor(Math.random() * 3); 
+        for (let i = 0; i < numRects; i++) {
+            const w = 4 + Math.floor(Math.random() * 6); // 幅4-9
+            const h = 4 + Math.floor(Math.random() * 6); // 高さ4-9
+            const x = Math.floor(Math.random() * (SIZE - w));
+            const y = Math.floor(Math.random() * (SIZE - h));
+            
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    solution[y + dy][x + dx] = 1;
+                }
             }
         }
-    }
 
-    // 3. ヒントが「2つ以下」になるように隙間を埋める (行・列それぞれ数回実行)
-    for (let iter = 0; iter < 4; iter++) {
-        for (let r = 0; r < SIZE; r++) {
-            mergeBlocks(solution[r]);
+        // 3. 制約の強制適用 (ヒント > 2 なら結合)
+        // 収束するまで繰り返す
+        let constraintsSatisfied = false;
+        let loopCount = 0;
+        
+        while (!constraintsSatisfied && loopCount < 20) {
+            constraintsSatisfied = true;
+            loopCount++;
+
+            // 行のチェック
+            for (let r = 0; r < SIZE; r++) {
+                if (mergeBlocksStrict(solution[r])) {
+                    constraintsSatisfied = false; // 変更があったらもう一周
+                }
+            }
+            
+            // 列のチェック
+            for (let c = 0; c < SIZE; c++) {
+                let col = [];
+                for (let r = 0; r < SIZE; r++) col.push(solution[r][c]);
+                
+                if (mergeBlocksStrict(col)) {
+                    constraintsSatisfied = false;
+                    // 列の変更を盤面に反映
+                    for (let r = 0; r < SIZE; r++) solution[r][c] = col[r];
+                }
+            }
         }
-        for (let c = 0; c < SIZE; c++) {
-            let col = [];
-            for (let r = 0; r < SIZE; r++) col.push(solution[r][c]);
-            mergeBlocks(col);
-            for (let r = 0; r < SIZE; r++) solution[r][c] = col[r];
+
+        // 4. バランスチェック
+        // 全マス黒(225個)や、ほぼ白(10個以下)ならやり直し
+        let totalFilled = 0;
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) if(solution[r][c]) totalFilled++;
+        
+        if (totalFilled > 20 && totalFilled < 180) {
+            isValid = true;
         }
     }
 }
 
-// 1行(列)の中で、ブロック数が2つを超えていたら結合して減らす
-function mergeBlocks(line) {
-    let blocks = [];
-    let inBlock = false;
-    let start = -1;
+// 1行(列)をチェックし、ブロックが3つ以上あれば結合して変更する
+// 戻り値: 変更があったら true
+function mergeBlocksStrict(line) {
+    let changed = false;
 
-    // 現在のブロックを検出
-    for (let i = 0; i < SIZE; i++) {
-        if (line[i] === 1) {
-            if (!inBlock) { inBlock = true; start = i; }
-        } else {
-            if (inBlock) { inBlock = false; blocks.push({s: start, e: i-1}); }
+    // ブロック情報を取得
+    // blocks = [ {s:開始index, e:終了index}, ... ]
+    let getBlocks = () => {
+        let b = [];
+        let inBlock = false;
+        let start = -1;
+        for (let i = 0; i < SIZE; i++) {
+            if (line[i] === 1) {
+                if (!inBlock) { inBlock = true; start = i; }
+            } else {
+                if (inBlock) { inBlock = false; b.push({s: start, e: i-1}); }
+            }
         }
-    }
-    if (inBlock) blocks.push({s: start, e: SIZE-1});
+        if (inBlock) b.push({s: start, e: SIZE-1});
+        return b;
+    };
 
-    // 3つ以上の塊がある場合、距離が近いものを結合
+    let blocks = getBlocks();
+
+    // 3つ以上ある場合、2つ以下になるまで結合を繰り返す
     while (blocks.length > 2) {
+        changed = true;
+
+        // 一番隙間が狭いところを探す
         let minGap = SIZE;
-        let mergeIdx = 0;
+        let mergeIdx = 0; // 結合する左側のブロックのインデックス
         
         for (let i = 0; i < blocks.length - 1; i++) {
             const gap = blocks[i+1].s - blocks[i].e;
@@ -161,22 +199,23 @@ function mergeBlocks(line) {
             }
         }
         
-        // 間の0を1に変える
+        // 隙間を埋める (0 -> 1)
         const b1 = blocks[mergeIdx];
         const b2 = blocks[mergeIdx+1];
+        // b1の終わりから b2の始まりまでを塗る
         for (let k = b1.e + 1; k < b2.s; k++) {
             line[k] = 1;
         }
-        
-        // リスト更新（簡易的に結合後の情報へ）
-        blocks[mergeIdx].e = b2.e;
-        blocks.splice(mergeIdx + 1, 1);
+
+        // ブロック情報再計算
+        blocks = getBlocks();
     }
+    
+    return changed;
 }
 
 
 // --- 描画・操作系 ---
-
 function getHints(line) {
     const hints = [];
     let count = 0;
@@ -234,19 +273,16 @@ function drawBoard() {
         leftHintsDiv.appendChild(div);
     }
 
-    // 盤面セル
+    // 盤面
     for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.dataset.r = r;
             cell.dataset.c = c;
-            
-            // 5マス太線用の属性
             cell.dataset.col = c;
             cell.dataset.row = r;
 
-            // マウスイベント
             cell.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 startDrag(r, c);
@@ -257,35 +293,29 @@ function drawBoard() {
         }
     }
     
-    // ドラッグ終了検知
     window.addEventListener('mouseup', () => {
         isMouseDown = false;
         currentDragTarget = null;
     });
 }
 
-
 // --- 操作ロジック ---
-
 function startDrag(r, c) {
     if (isGameOver) return;
     isMouseDown = true;
     
-    // ドラッグ開始時に「未入力(0)のセル」に対して操作を行う意図を持つ
-    // すでに判定済みのセルから開始した場合は何もしない
+    // 操作ターゲット決定 (未入力セルのみ)
     if (userState[r][c] !== 0) {
         currentDragTarget = null;
         return;
     }
-    currentDragTarget = 0; // ターゲットは未入力セル
+    currentDragTarget = 0;
     
     applyAction(r, c);
 }
 
 function continueDrag(r, c) {
     if (isGameOver || !isMouseDown) return;
-    
-    // ドラッグ中は「未入力セル」だけを塗り変える
     if (userState[r][c] === 0) {
         applyAction(r, c);
     }
@@ -295,28 +325,26 @@ function applyAction(r, c) {
     const correctValue = solution[r][c];
     let isMistake = false;
 
-    // ユーザーの意図 (Fill or Cross)
     if (currentMode === 1) { // 塗る
         if (correctValue === 1) {
-            userState[r][c] = 1; // 正解
+            userState[r][c] = 1; 
         } else {
             isMistake = true;
-            userState[r][c] = 2; // 本来は白(×)であることを強制開示
-            registerMistake(r, c, 'cross'); // 「本来は×だよ」という赤いバツを表示
+            userState[r][c] = 2; // 強制バツ
+            registerMistake(r, c, 'cross');
         }
     } else { // バツ
         if (correctValue === 0) {
-            userState[r][c] = 2; // 正解
+            userState[r][c] = 2; 
         } else {
             isMistake = true;
-            userState[r][c] = 1; // 本来は黒(Fill)であることを強制開示
-            registerMistake(r, c, 'fill'); // 「本来は塗りだよ」という赤い塗りを表示
+            userState[r][c] = 1; // 強制塗り
+            registerMistake(r, c, 'fill');
         }
     }
 
     updateCellVisual(r, c);
     
-    // ミスでなければオートコンプリートチェックなど
     if (!isMistake) {
         checkAutoCross(r, c);
     }
@@ -327,15 +355,11 @@ function registerMistake(r, c, type) {
     mistakeCount++;
     updateMistakeDisplay();
 
-    // エラー表示用のクラスを付与
     const index = r * SIZE + c;
     const cell = document.getElementById('board').children[index];
     
-    if (type === 'cross') {
-        cell.classList.add('error-cross');
-    } else {
-        cell.classList.add('error-fill');
-    }
+    if (type === 'cross') cell.classList.add('error-cross');
+    else cell.classList.add('error-fill');
 
     if (mistakeCount >= MAX_MISTAKES) {
         triggerGameOver();
@@ -346,7 +370,6 @@ function updateCellVisual(r, c) {
     const index = r * SIZE + c;
     const cell = document.getElementById('board').children[index];
     
-    // エラー表示クラスは残しつつ、基本状態を反映
     if (userState[r][c] === 1) cell.classList.add('filled');
     if (userState[r][c] === 2) cell.classList.add('crossed');
 }
@@ -362,17 +385,15 @@ function triggerGameOver() {
     setTimeout(() => alert("Game Over!"), 50);
 }
 
-
 // --- 自動処理 & 勝利判定 ---
-
 function checkAutoCross(changedR, changedC) {
     if (isGameOver) return;
 
-    // 行チェック
+    // 行
     if (shouldAutoCrossLine(solution[changedR], userState[changedR])) {
         fillRestWithCross(changedR, null);
     }
-    // 列チェック
+    // 列
     let colSol = [], colUser = [];
     for(let r=0; r<SIZE; r++) {
         colSol.push(solution[r][changedC]);
@@ -386,13 +407,11 @@ function checkAutoCross(changedR, changedC) {
 function shouldAutoCrossLine(solLine, userLine) {
     const targetCount = solLine.filter(x => x === 1).length;
     const currentCount = userLine.filter(x => x === 1).length;
-    // 黒の数が一致していれば（位置が合っているかは別として）完了とみなす
-    // ※ミス時に強制修正されているので、数は必ず合う方向に向かう
+    // 黒の数が一致したらOK（ミス修正済み前提）
     return targetCount === currentCount && targetCount > 0;
 }
 
 function fillRestWithCross(targetR, targetC) {
-    // 行
     if (targetR !== null) {
         for (let c = 0; c < SIZE; c++) {
             if (userState[targetR][c] === 0) {
@@ -401,7 +420,6 @@ function fillRestWithCross(targetR, targetC) {
             }
         }
     }
-    // 列
     if (targetC !== null) {
         for (let r = 0; r < SIZE; r++) {
             if (userState[r][targetC] === 0) {
@@ -418,9 +436,7 @@ function checkWin() {
     let correct = true;
     for(let r=0; r<SIZE; r++) {
         for(let c=0; c<SIZE; c++) {
-            // 正解が1の場所が、ユーザー状態でも1になっているか
             if (solution[r][c] === 1 && userState[r][c] !== 1) correct = false;
-            // 正解が0の場所が、ユーザー状態で1になっていないか
             if (solution[r][c] === 0 && userState[r][c] === 1) correct = false;
         }
     }
