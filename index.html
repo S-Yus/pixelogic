@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Nonogram</title>
+    <style>
+        :root {
+            --cell-size: 30px; /* マスの大きさ */
+            --grid-gap: 1px;
+            --bg-color: #eee;
+            --board-color: #fff;
+            --hint-bg: #e0e0e0;
+            --filled-color: #333;
+            --cross-color: #888;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        h1 { color: #444; }
+
+        /* ゲーム全体のコンテナ：CSS Gridでレイアウト */
+        .game-container {
+            display: grid;
+            /* 左上の空白 | 上のヒント */
+            /* 左のヒント | メインの盤面 */
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 5px;
+            background: #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* ヒントエリア共通 */
+        .hints {
+            display: flex;
+            background-color: var(--hint-bg);
+            font-size: 12px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        /* 上のヒント（縦書き） */
+        .hints-top {
+            grid-column: 2;
+            grid-row: 1;
+            display: flex;
+            flex-direction: row; /* 横に並べる */
+        }
+        .hint-col {
+            width: var(--cell-size);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 5px;
+            border-right: 1px solid #ccc;
+            white-space: pre-line; /* 改行を有効に */
+            gap: 2px;
+        }
+
+        /* 左のヒント（横書き） */
+        .hints-left {
+            grid-column: 1;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+        }
+        .hint-row {
+            height: var(--cell-size);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-right: 10px;
+            border-bottom: 1px solid #ccc;
+            gap: 5px;
+        }
+
+        /* 盤面エリア */
+        .board {
+            grid-column: 2;
+            grid-row: 2;
+            display: grid;
+            /* JSで grid-template-columns を設定します */
+            gap: 1px;
+            background-color: #999; /* 格子線の色 */
+            border: 2px solid #555;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: var(--board-color);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            user-select: none; /* テキスト選択禁止 */
+        }
+
+        /* マスの状態 */
+        .cell.filled {
+            background-color: var(--filled-color);
+        }
+        .cell.crossed::after {
+            content: "×";
+            color: var(--cross-color);
+        }
+
+        /* 5マスごとの太線（CSS Gridのgap等で調整も可能だが簡易的にボーダーで） */
+        .cell:nth-child(5n):not(:last-child) {
+             /* 簡易実装のため割愛。本格実装ではborder調整が必要 */
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Simple Logic Puzzle</h1>
+    
+    <div class="game-container">
+        <div class="spacer"></div>
+        <div id="hints-top" class="hints hints-top"></div>
+        <div id="hints-left" class="hints hints-left"></div>
+        <div id="board" class="board"></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="checkWin()">Check!</button>
+        <button onclick="resetGame()">Reset</button>
+    </div>
+
+    <script>
+        // --- 設定とデータ ---
+        // 1: 黒, 0: 白
+        // ハートのような形を定義
+        const solution = [
+            [0, 1, 1, 0, 0, 0, 1, 1, 0, 0],
+            [1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+            [0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ];
+
+        const rows = solution.length;
+        const cols = solution[0].length;
+        
+        // ユーザーの状態 (0:空, 1:黒, 2:バツ)
+        let userState = Array.from({ length: rows }, () => Array(cols).fill(0));
+        
+        // ドラッグ操作用のフラグ
+        let isDragging = false;
+        let dragMode = 0; // 1:塗る, 2:バツ, 0:消す
+        let dragTargetState = 0; // ドラッグ開始時に「塗る」か「消す」かを決定
+
+        // --- 初期化 ---
+        window.onload = () => {
+            initGame();
+        };
+
+        function initGame() {
+            renderHints();
+            renderBoard();
+        }
+
+        // --- ロジック: ヒント計算 ---
+        function calculateClues(line) {
+            const clues = [];
+            let count = 0;
+            for (let cell of line) {
+                if (cell === 1) {
+                    count++;
+                } else if (count > 0) {
+                    clues.push(count);
+                    count = 0;
+                }
+            }
+            if (count > 0) clues.push(count);
+            return clues.length > 0 ? clues : [0];
+        }
+
+        // --- 描画: ヒント ---
+        function renderHints() {
+            const topContainer = document.getElementById('hints-top');
+            const leftContainer = document.getElementById('hints-left');
+
+            // 上のヒント（列ごと）
+            for (let c = 0; c < cols; c++) {
+                let colData = [];
+                for (let r = 0; r < rows; r++) colData.push(solution[r][c]);
+                
+                const clues = calculateClues(colData);
+                const div = document.createElement('div');
+                div.className = 'hint-col';
+                // 数字ごとにspanで囲む
+                clues.forEach(num => {
+                    const span = document.createElement('span');
+                    span.textContent = num;
+                    div.appendChild(span);
+                });
+                topContainer.appendChild(div);
+            }
+
+            // 左のヒント（行ごと）
+            for (let r = 0; r < rows; r++) {
+                const clues = calculateClues(solution[r]);
+                const div = document.createElement('div');
+                div.className = 'hint-row';
+                clues.forEach(num => {
+                    const span = document.createElement('span');
+                    span.textContent = num;
+                    div.appendChild(span);
+                });
+                leftContainer.appendChild(div);
+            }
+        }
+
+        // --- 描画: 盤面 ---
+        function renderBoard() {
+            const board = document.getElementById('board');
+            // CSS Gridのカラム数を動的に設定
+            board.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+            board.innerHTML = ''; // リセット
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    
+                    // マウスイベント
+                    cell.addEventListener('mousedown', (e) => startDrag(e, r, c));
+                    cell.addEventListener('mouseenter', (e) => onDrag(e, r, c));
+                    cell.addEventListener('contextmenu', (e) => e.preventDefault()); // 右クリックメニュー禁止
+
+                    board.appendChild(cell);
+                }
+            }
+            
+            // 画面外でマウスを離した時のためにwindowにイベント追加
+            window.addEventListener('mouseup', () => { isDragging = false; });
+        }
+
+        // --- 操作ロジック ---
+        function updateCellVisual(r, c) {
+            // DOM要素を取得してクラスを付け替える
+            // (行 * 列数 + 列) でインデックス計算
+            const index = r * cols + c;
+            const cell = document.getElementById('board').children[index];
+            
+            cell.classList.remove('filled', 'crossed');
+            if (userState[r][c] === 1) cell.classList.add('filled');
+            if (userState[r][c] === 2) cell.classList.add('crossed');
+        }
+
+        function startDrag(e, r, c) {
+            e.preventDefault(); // テキスト選択防止
+            isDragging = true;
+            
+            // 右クリック(button 2)ならバツモード、左クリック(button 0)なら塗りモード
+            if (e.button === 2) {
+                // 既にバツなら「消す」、そうでなければ「バツにする」
+                dragTargetState = (userState[r][c] === 2) ? 0 : 2;
+            } else {
+                // 既に塗られていれば「消す」、そうでなければ「塗る」
+                dragTargetState = (userState[r][c] === 1) ? 0 : 1;
+            }
+
+            applyState(r, c);
+        }
+
+        function onDrag(e, r, c) {
+            if (!isDragging) return;
+            applyState(r, c);
+        }
+
+        function applyState(r, c) {
+            // 現在のターゲット状態を適用
+            userState[r][c] = dragTargetState;
+            updateCellVisual(r, c);
+        }
+
+        // --- 判定ロジック ---
+        function checkWin() {
+            let isCorrect = true;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    // 正解が1(黒)なのに塗っていない(1じゃない)、
+                    // または正解が0(白)なのに塗っている(1になっている)と間違い
+                    // ※ バツ(2)は正解判定では白(0)と同じ扱い
+                    const isFilled = userState[r][c] === 1;
+                    const shouldBeFilled = solution[r][c] === 1;
+                    
+                    if (isFilled !== shouldBeFilled) {
+                        isCorrect = false;
+                    }
+                }
+            }
+
+            if (isCorrect) {
+                alert("クリア！おめでとうございます！");
+            } else {
+                alert("まだ間違いがあるようです...");
+            }
+        }
+
+        function resetGame() {
+            userState = Array.from({ length: rows }, () => Array(cols).fill(0));
+            // 表示を全リセット
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(c => c.classList.remove('filled', 'crossed'));
+        }
+    </script>
+</body>
+</html>
