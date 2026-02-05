@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixelogic Clone</title>
+    <title>Pixelogic Clone - Final</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div class="app-header">
+    <header class="app-header">
         <div class="header-left">
             <div class="logo">Pixelogic</div>
             <div class="divider">|</div>
-            <div class="puzzle-title">Random 15x15</div>
+            <div class="puzzle-info">Random 15x15</div>
         </div>
         <div class="header-right">
             <div id="timer" class="timer">00:00</div>
         </div>
-    </div>
+    </header>
 
-    <div class="main-content">
+    <main class="main-content">
+        
         <div class="status-bar">
             Mistakes: <span id="mistake-count">0</span> / 5
         </div>
@@ -33,7 +34,8 @@
         </div>
         
         <div id="status-message" class="status-message"></div>
-    </div>
+
+    </main>
 
     <div class="floating-controls">
         <div class="toggle-switch-wrapper">
@@ -43,6 +45,7 @@
                 <span class="icon-fill"></span>
             </label>
         </div>
+        
         <button id="new-game-btn" class="fab-btn">New</button>
     </div>
 

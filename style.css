@@ -1,18 +1,16 @@
 :root {
-    --bg-color: #e0e0e0; /* 本家っぽい背景色 */
-    --board-bg: #fff;
-    --grid-line: #ccc;
-    --grid-thick: #888; /* 5マスごとの線 */
+    --bg-color: #e0e0e0;      /* 背景グレー */
+    --board-bg: #fff;         /* 盤面背景 */
+    --grid-line: #ccc;        /* 通常の枠線 */
+    --grid-thick: #666;       /* 5マスごとの太線 */
     
-    --cell-size: 34px; 
+    --cell-size: 32px;        /* マスの大きさ */
     
-    /* 本家カラー */
-    --filled-color: #4CAF50; /* 緑色 */
-    --cross-color: #757575;  /* グレーのバツ */
-    --error-color: #e53935;  /* エラーの赤 */
+    --filled-color: #4CAF50;  /* 正解の緑 */
+    --cross-color: #757575;   /* バツのグレー */
+    --error-color: #E53935;   /* ミスの赤 */
     
-    --hint-text: #333;
-    --hint-bg: transparent; /* ヒント背景は透明または薄いグレー */
+    --hint-text: #444;
 }
 
 body {
@@ -24,6 +22,7 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
+    user-select: none; /* テキスト選択防止 */
 }
 
 /* ヘッダー */
@@ -34,8 +33,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     box-sizing: border-box;
     position: fixed;
     top: 0;
@@ -45,52 +44,57 @@ body {
 .header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #444;
+    gap: 12px;
 }
 
 .logo {
-    color: #4CAF50; /* ロゴ風の緑 */
+    color: var(--filled-color);
     font-weight: 900;
-    letter-spacing: -1px;
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
 }
 
-.divider { color: #ccc; }
-.puzzle-title { font-weight: normal; font-size: 1rem; color: #666; }
+.divider { color: #ddd; font-size: 1.2rem; }
+.puzzle-info { color: #888; font-size: 0.95rem; font-weight: 500; }
 
 .timer {
-    font-family: 'Roboto', monospace;
-    font-size: 1.5rem;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.4rem;
     color: #555;
-    font-weight: bold;
+    font-weight: 700;
 }
 
-/* メインコンテンツ */
+/* メインエリア */
 .main-content {
-    margin-top: 80px; /* ヘッダー分空ける */
+    margin-top: 80px; /* ヘッダー分 */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-bottom: 100px; /* 下のボタン分空ける */
+    padding-bottom: 120px; /* 下部ボタン分 */
 }
 
 .status-bar {
-    margin-bottom: 10px;
-    font-family: 'Roboto', monospace;
+    margin-bottom: 16px;
+    font-family: 'Roboto Mono', monospace;
     font-weight: bold;
     color: var(--error-color);
+    font-size: 1.1rem;
+    background: #fff;
+    padding: 4px 12px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* 盤面レイアウト */
+/* 盤面レイアウト (Grid) */
 .game-board-wrapper {
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: auto 1fr;
-    gap: 2px;
+    gap: 0; /* 隙間なしで隣接させる */
+    background: transparent;
 }
 
+/* ヒントエリア */
 .hints-top { display: flex; }
 .hint-col {
     width: var(--cell-size);
@@ -98,10 +102,12 @@ body {
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
+    font-family: 'Roboto Mono', monospace;
     font-size: 13px;
     color: var(--hint-text);
-    padding-bottom: 4px;
-    border-left: 1px solid transparent; /* 線なし */
+    padding-bottom: 6px;
+    border-left: 1px solid transparent; /* 位置合わせ用 */
+    box-sizing: border-box;
 }
 
 .hints-left { display: flex; flex-direction: column; }
@@ -110,20 +116,23 @@ body {
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    font-family: 'Roboto Mono', monospace;
     font-size: 13px;
     color: var(--hint-text);
-    padding-right: 8px;
-    gap: 4px;
+    padding-right: 10px;
+    gap: 6px;
+    box-sizing: border-box;
 }
 
+/* 盤面本体 */
 .board {
     display: grid;
     grid-template-columns: repeat(15, var(--cell-size));
     grid-template-rows: repeat(15, var(--cell-size));
-    border: 2px solid var(--grid-thick);
-    background: var(--grid-line);
-    gap: 1px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* 盤面に影をつける */
+    border: 2px solid var(--grid-thick); /* 外枠 */
+    background: var(--grid-line); /* グリッド線の色 */
+    gap: 1px; /* 1pxの隙間を作ることで罫線を表現 */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
 .cell {
@@ -132,120 +141,135 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    user-select: none;
+    position: relative;
     box-sizing: border-box;
 }
 
 /* 5マスごとの太線 */
-.cell[data-col="4"], .cell[data-col="9"] { border-right: 1px solid var(--grid-thick); }
-.cell[data-row="4"], .cell[data-row="9"] { border-bottom: 1px solid var(--grid-thick); }
+/* 擬似要素ではなくborderを使うとgapと干渉してズレるため、
+   特定の列・行のセルにだけborderを追加し、その分paddingを調整するか
+   box-sizing:border-boxを活用する */
+.cell[data-col="4"], .cell[data-col="9"] {
+    border-right: 1px solid var(--grid-thick);
+}
+.cell[data-row="4"], .cell[data-row="9"] {
+    border-bottom: 1px solid var(--grid-thick);
+}
 
-/* 状態別のスタイル */
-.cell.filled { background-color: var(--filled-color); } /* 緑色 */
+/* 状態スタイル */
+.cell.filled {
+    background-color: var(--filled-color);
+}
 .cell.crossed::after {
     content: "×";
-    font-size: 24px;
+    font-size: 22px;
     color: var(--cross-color);
     font-weight: bold;
 }
 
-/* エラー（赤） */
-.cell.error-cross { background-color: #ffebee; }
+/* エラー（ミス）スタイル */
+/* 本来バツなのに塗ろうとした -> 赤いバツ */
+.cell.error-cross {
+    background-color: #ffebee;
+}
 .cell.error-cross::after {
     content: "×";
-    font-size: 24px;
+    font-size: 22px;
     color: var(--error-color);
     font-weight: bold;
 }
-.cell.error-fill { background-color: var(--error-color) !important; }
-
-/* 右下のフローティングコントロール */
-.floating-controls {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    z-index: 100;
+/* 本来塗りなのにバツしようとした -> 赤い塗り */
+.cell.error-fill {
+    background-color: var(--error-color) !important;
 }
 
+/* メッセージ */
+.status-message {
+    margin-top: 24px;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--filled-color);
+    height: 30px;
+}
+
+/* 右下のフローティング操作系 */
+.floating-controls {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    z-index: 200;
+}
+
+/* 丸いNewボタン */
 .fab-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
     background: #333;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 30px;
     font-weight: bold;
+    font-size: 14px;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
 }
+.fab-btn:active { transform: scale(0.95); }
 
-/* 本家風スイッチ */
+/* スライドスイッチ */
 .toggle-switch-wrapper {
     position: relative;
-    width: 100px;
-    height: 50px;
-    background: white;
-    border-radius: 25px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 5px;
-    box-sizing: border-box;
-    cursor: pointer;
+    width: 90px;
+    height: 44px;
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     overflow: hidden;
 }
 
 .mode-checkbox { display: none; }
 
 .mode-label {
+    display: flex;
     width: 100%;
     height: 100%;
-    display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 15px;
+    padding: 0 14px;
+    box-sizing: border-box;
     cursor: pointer;
-    z-index: 2;
     position: relative;
 }
 
-.icon-cross { font-size: 24px; color: #999; font-weight: bold; }
+.icon-cross { font-size: 24px; color: #aaa; font-weight: bold; line-height: 1; }
 .icon-fill { 
-    width: 20px; height: 20px; 
-    background-color: #999; 
-    display: inline-block; 
-    border-radius: 2px;
+    width: 18px; height: 18px; 
+    background-color: #aaa; 
+    border-radius: 3px; 
 }
 
-/* 選択中の背景スライド */
+/* スライダーの背景黒丸 */
 .mode-label::before {
     content: "";
     position: absolute;
-    top: 5px;
-    right: 5px; /* 初期状態は右（塗り） */
-    width: 45px;
-    height: 40px;
+    top: 4px;
+    right: 4px; /* 初期位置：右（塗り） */
+    width: 40px;
+    height: 36px;
     background-color: #333;
-    border-radius: 20px;
-    transition: 0.3s;
-    z-index: -1;
+    border-radius: 18px;
+    transition: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    z-index: 1;
 }
 
-/* チェックなし(×モード)の時 */
+/* チェックなし(×モード)の時、左へ */
 .mode-checkbox:not(:checked) + .mode-label::before {
-    transform: translateX(-45px); /* 左へ移動 */
+    transform: translateX(-42px);
 }
 
-/* アイコンの色変化 */
-.mode-checkbox:checked + .mode-label .icon-fill { background-color: white; }
-.mode-checkbox:not(:checked) + .mode-label .icon-cross { color: white; }
-
-.status-message {
-    margin-top: 20px;
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--filled-color);
-}
+/* 選択されているアイコンを白くする */
+.mode-checkbox:checked + .mode-label .icon-fill { background-color: #fff; z-index: 2; }
+.mode-checkbox:not(:checked) + .mode-label .icon-cross { color: #fff; z-index: 2; }
